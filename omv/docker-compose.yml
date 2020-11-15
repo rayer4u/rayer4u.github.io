@@ -1,0 +1,81 @@
+version: '3.0'
+
+services:
+  # nginx:
+  #   restart: always
+  #   image: nginx
+  #   # ports:
+  #   #   - "7099:8000"
+  #     # - "443:443"
+  #   volumes:
+  #     - ./default.conf:/etc/nginx/conf.d/default.conf
+  #     - ./cacert.pem:/etc/ssl/cacert.pem
+  #     - ./privkey.pem:/etc/ssl/privkey.pem
+  #   networks:
+  #     - omv-net
+  #   depends_on:
+  #     - seafile
+
+  db:
+    image: mariadb:10.1
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWD}  # Requested, set the root's password of MySQL service.
+      - MYSQL_LOG_CONSOLE=true
+    volumes:
+      - ${DB_DATA_DIR}:/var/lib/mysql:rw  # Requested, specifies the path to MySQL data persistent store.  
+    networks:
+      - omv-net
+    restart: unless-stopped
+
+  elasticsearch:
+    image: seafileltd/elasticsearch-with-ik:5.6.16
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # mem_limit: 2g
+    volumes:
+      -  ${ES_DATA_DIR}:/usr/share/elasticsearch/data  # Requested, specifies the path to Elasticsearch data persistent store.
+    networks:
+      - omv-net
+    restart: unless-stopped
+
+  memcached:
+    image: memcached:1.5.6
+    entrypoint: memcached -m 256
+    networks:
+      - omv-net
+    restart: unless-stopped
+
+  seafile:
+    image: docker.seafile.top/seafileltd/seafile-pro-mc:latest #seafileltd/seafile-mc:latest  切回就是社区版，没有人数限制，可以关闭elasticsearch
+    ports:
+      - ${SEAFILE_SERVER_PORT_HTTP}:80
+      - ${SEAFILE_SERVER_PORT_HTTPS}:443
+    volumes:
+    - ${SEAFILE_DATA_DIR}:/shared:rw
+    - ./certs:/shared/ssl:ro
+    - ./seafile.nginx.conf.template:/templates/seafile.nginx.conf.template:ro
+    environment:
+      - DB_HOST=db
+      - TIME_ZONE=Etc/UTC  # Optional, default is UTC. Should be uncomment and set to your local time zone.    
+      - DB_ROOT_PASSWD
+      - SEAFILE_ADMIN_EMAIL
+      - SEAFILE_ADMIN_PASSWORD
+      - SEAFILE_SERVER_LETSENCRYPT
+      - SEAFILE_SERVER_HOSTNAME
+    depends_on:
+      - db
+      - memcached
+      - elasticsearch      
+    networks:
+      - omv-net
+    restart: unless-stopped
+
+networks:
+  omv-net:
+
