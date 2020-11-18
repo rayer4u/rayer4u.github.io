@@ -16,8 +16,28 @@ services:
   #   depends_on:
   #     - seafile
 
+  # gogs:
+  #   image: gogs/gogs
+  #   ports:
+  #     - "10080:3000"
+  #   volumes:
+  #     - ./data/gogs:/data
+
+  syncthing:
+    image: syncthing/syncthing
+    ports:
+      - 8384:8384
+      - 22000:22000
+    volumes:
+    - ./data/syncthing:/var/syncthing:rw
+    networks:
+      - omv-net
+    restart: unless-stopped
+
   db:
-    image: mariadb:10.1
+    image: mariadb:10.5
+    ports:
+      - 127.0.0.1:3306:3306    
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWD}  # Requested, set the root's password of MySQL service.
       - MYSQL_LOG_CONSOLE=true
