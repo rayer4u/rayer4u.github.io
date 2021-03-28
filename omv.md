@@ -79,7 +79,7 @@ docker-compose up -d
 
 1. seafile.conf添加配置
 
-    ``` seafile.conf
+    ``` /shared/tmp/seafile.conf
     [commit_object_backend]
     name = s3
     bucket = my-commit-objects
@@ -115,10 +115,10 @@ docker-compose up -d
     > docker run -it --rm --entrypoint=/bin/sh minio/mc
 
      ## **自行**下载minio的mc工具，放置到seafile配置目录，
-    cp seafile/mc  omv_seafile_1:/usr/bin/
+    docker cp seafile/mc  omv_seafile_1:/usr/bin/
 
     # 自制seafile的本地文件目录格式->s3文件目录格式转换工具
-    cp seafile/seafile_minio.mv.sh:/usr/bin/
+    docker cp seafile/seafile_minio_mv.sh  omv_seafile_1:/usr/bin/
     ```
 
 3. 进行已有数据迁移
@@ -130,12 +130,19 @@ docker-compose up -d
     # 创建minio的客户端快捷访问
     > mc alias set minio http://minio:9000 minio1 minio123 --api s3v4
 
-    # 进行seafile已有文件迁移
+    # 停掉入口 
+    ./seahub.sh stop
+    
+    # 开始同步
+    cd seafile-pro-server-7.1.8/
+    ./migrate.sh /shared/tmp/
+    
+    # 进行seafile已有文件迁移。废弃，采用migrate.sh
     > mc cp -r  blocks/* minio/my-block-objects/
     > mc cp -r commits/* minio/my-commit-objects/
     > mc cp -r fs/* minio/my-fs-objects/
 
-    # 迁移的格式进行转换
+    # 迁移的格式进行转换。废弃，采用migrate.sh
     > bash seafile_minio_mv.sh minio/my-commit-objects/
     > bash seafile_minio_mv.sh minio/my-fs-objects/
     > bash seafile_minio_mv.sh minio/my-block-objects/
