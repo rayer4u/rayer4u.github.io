@@ -18,8 +18,8 @@ def main():
     current_ip = get_ip()
     print("Host Ip: %s" % current_ip)
 
-    api = apicn.DomainId(domain, login_token=login_token)
-    domain_id = api().get("domains", {}).get("id")
+    api = apicn.DomainInfo(domain_id='', domain=domain, login_token=login_token)
+    domain_id = api().get("domain", {}).get("id")
 
     api = apicn.RecordList(domain_id, sub_domain=sub_domain, record_type='A', login_token=login_token)
     record = api().get('records')[0]
