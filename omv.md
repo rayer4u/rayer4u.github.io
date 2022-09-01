@@ -44,13 +44,64 @@ cp daemon.json /etc/docker/
 service docker restart
 ```
 
+## 目录配置
+
+```
+cd rayer4u.github.io
+
+# nginx访问密码文件
+vim omv/nginx/passwd
+
+```
+
+## certbot
+
+以roybi.net为例采用letsencrypt（certbot)使用[dnspod插件](https://pypi.org/project/certbot-dnspod/)进行加密
+
+1. 在指定目录放入域名的配置文件，token在dnspod网站获取
+
+```bash
+$vim rayer4u.github.io/certs/roybi.net.txt
+certbot_dnspod_token_id = <your token id>
+certbot_dnspod_token = <your token>
+```
+
+2. 创建域名证书，配置文件参考`docker-compose.yml`。其他域名参照配置。在letsencrypt目录运行`docker-compose run roybi.net`生成
+
+```yml
+  roybi.net:
+    build: .
+    command: certonly --authenticator certbot-dnspod --certbot-dnspod-credentials /etc/letsencrypt/roybi.net.txt -d roybi.net -d *.roybi.net
+    volumes:
+      - ../../certs:/etc/letsencrypt
+      #- /var/lib/letsencrypt:/var/lib/letsencrypt
+      #- ./venv:/opt/certbot/venv
+    stdin_open: true
+    tty: true
+```
+
+3. 证书采用快捷方式，方便seafile直接调用
+
+```bash
+cd rayer4u.github.io/certs
+ln -s live/roybi.net/fullchain.pem roybi.net.crt
+ln -s live/roybi.net/privkey.pem roybi.net.key
+```
+
+4. 自动renew证书(cron)
+
+```crontab
+43 6 * * 2 /root/rayer4u.github.io/omv/letsencrypt/renew.sh
+```
+
 ## 安装seafile
 
 ```shell
 cd omv/certs
 
-# 或者nginx自签名证书。要指定正确的地址，后续seafile使用。或者拷贝正式证书改名
+# 或者nginx自签名证书。要指定正确的地址，后续seafile使用。
 gencert.sh
+# 或者使用certbot
 
 # 配置.env
 cd ..
@@ -72,6 +123,14 @@ docker-compose up -d
 ## seafile
 
 [社区版专业版转换](https://manual-cn-origin.seafile.com/deploy_pro/migrate_from_seafile_community_server)，docker版只用其中的migrate
+
+### 更新nginx模板
+
+```
+rm /shared/nginx/conf/seafile.nginx.conf
+python3 -c "import bootstrap; bootstrap.generate_local_nginx_conf()"
+```
+
 
 ### storage切换minio
 
@@ -130,13 +189,13 @@ docker-compose up -d
     # 创建minio的客户端快捷访问
     > mc alias set minio http://minio:9000 minio1 minio123 --api s3v4
 
-    # 停掉入口 
+    # 停掉入口
     ./seahub.sh stop
-    
+
     # 开始同步
     cd seafile-pro-server-7.1.8/
     ./migrate.sh /shared/tmp/
-    
+
     # 进行seafile已有文件迁移。废弃，采用migrate.sh
     > mc cp -r  blocks/* minio/my-block-objects/
     > mc cp -r commits/* minio/my-commit-objects/

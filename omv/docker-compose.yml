@@ -7,7 +7,8 @@ services:
     #   - "7099:8000"
       # - "443:443"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/passwd:/opt/passwd:ro
       - ${HTML_DATA_DIR}:/usr/share/nginx/html
       # - ./cacert.pem:/etc/ssl/cacert.pem
       # - ./privkey.pem:/etc/ssl/privkey.pem
@@ -73,14 +74,14 @@ services:
     networks:
       - omv-net
     restart: unless-stopped
-  
+
   minio:
     image: minio/minio:RELEASE.2021-01-16T02-19-44Z
     volumes:
       - ${data1}:/data1
       - ${data2}:/data2
       - ${data3}:/data3
-      - ${data4}:/data4 
+      - ${data4}:/data4
     ports:
       - "127.0.0.1:${MINIO_PORT}:9000"
     expose:
@@ -105,7 +106,7 @@ services:
       - ${SEAFILE_SERVER_PORT_HTTPS}:443
     volumes:
       - ${SEAFILE_DATA_DIR}:/shared:rw
-      - ./certs:/shared/ssl:ro
+      - ../certs:/shared/ssl:ro
       - ./seafile/seafile.nginx.conf.template:/templates/seafile.nginx.conf.template:ro
     # 以下只有需要fuse映射才配置，并且需要源系统支持/dev/fuse
     # devices:
@@ -125,31 +126,31 @@ services:
     depends_on:
       - db
       - memcached
-      - elasticsearch      
+      - elasticsearch
     networks:
       - omv-net
     restart: unless-stopped
 
-  # aria2:
-  #   image: superng6/aria2
-  #   environment:
-  #     - PUID=1000
-  #     - PGID=1000
-  #     #- TZ=Asia/Shanghai
-  #     - SECRET=vNp5keQn4YWmM
-  #   volumes:
-  #     - ./config:/config
-  #     - ${HTML_DATA_DIR}:/downloads
-  #   ports:
-  #     - 6881:6881
-  #     - 6881:6881/udp
-  #     - 6800:6800
-  #   restart: unless-stopped
+  aria2:
+    image: superng6/aria2
+    environment:
+      - PUID=1000
+      - PGID=1000
+      #- TZ=Asia/Shanghai
+      - SECRET=vNp5keQn4YWmM
+    volumes:
+      - ./config:/config
+      - ${HTML_DATA_DIR}:/downloads
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 6800:6800
+    restart: unless-stopped
 
-  # ariang:
-  #   image: superng6/ariang:latest
-  #   ports:
-  #     - 8080:80
+  ariang:
+    image: superng6/ariang:latest
+    ports:
+      - 8080:80
 
 networks:
   omv-net:
