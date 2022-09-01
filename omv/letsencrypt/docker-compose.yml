@@ -1,0 +1,19 @@
+version: '3.0'
+
+services:
+  roybi.net:
+    build: .
+    command: certonly --authenticator certbot-dnspod --certbot-dnspod-credentials /etc/letsencrypt/roybi.net.txt -d roybi.net -d *.roybi.net 
+    volumes:
+      - ../../certs:/etc/letsencrypt
+      #- /var/lib/letsencrypt:/var/lib/letsencrypt
+      #- ./venv:/opt/certbot/venv
+    stdin_open: true
+    tty: true
+
+  renew:
+    build: .
+    command: renew 
+    volumes:
+      - ../../certs:/etc/letsencrypt
+    tty: true
