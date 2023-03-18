@@ -1,4 +1,7 @@
 #/bin/bash
+base_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 
-cd /root/rayer4u.github.io/omv/letsencrypt
-docker-compose run renew
+cd "$base_path"
+source .env
+docker-compose run -u$(id -u):$(id -g) --rm renew
+python3 cert_change_update.py ${HOST_CERT_DIR}/live/${DOMAIN}/fullchain.pem
