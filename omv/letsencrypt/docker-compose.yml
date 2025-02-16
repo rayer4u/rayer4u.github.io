@@ -3,7 +3,8 @@ version: '3.0'
 services:
   certonly:
     image: rayer4u/certbot-dnspod
-    command: certonly --authenticator certbot-dnspod --certbot-dnspod-credentials /etc/letsencrypt/${DOMAIN}.txt -d ${DOMAIN} -d *.${DOMAIN} --logs-dir /etc/letsencrypt/logs --work-dir /etc/letsencrypt
+    command: certonly -n --authenticator certbot-dnspod --certbot-dnspod-credentials /etc/letsencrypt/${DOMAIN}.txt -d ${DOMAIN} -d *.${DOMAIN} --work-dir /etc/letsencrypt --logs-dir /etc/letsencrypt/logs
+    user: ${UID}:${GID}
     volumes:
       - ${HOST_CERT_DIR}:/etc/letsencrypt
     stdin_open: true
@@ -12,6 +13,7 @@ services:
   renew:
     image: rayer4u/certbot-dnspod
     command: renew --logs-dir /etc/letsencrypt/logs --work-dir /etc/letsencrypt
+    user: ${UID}:${GID}
     volumes:
       - ${HOST_CERT_DIR}:/etc/letsencrypt
     tty: true
