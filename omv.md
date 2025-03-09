@@ -1,27 +1,47 @@
 # 安装omv
 
-使用最新的iso``安装。默认用户admin/openmediavault。deiban系统的账号会在安装过程中提示输入，用来ssh
+使用最新的iso`openmediavault_7.0-32-amd64.iso`安装。默认用户admin/openmediavault。deiban系统的账号会在安装过程中提示输入，用来ssh
 
-## 系统升级
+
+## 系统配置
 
 ```shell
 # 设置网络dns
-vim  /etc/network/interfaces
-vim /etc/resolv.conf 
-service networking restart
+# https://wiki.debian.org/SystemdNetworkd
+systemctl status systemd-networkd
+vim /run/systemd/network/10-netplan-enp3s0f1.network
 
-# 更换源。参考[源](https://cloud.tencent.com/developer/article/1590080)
-sed -i 's#http://deb.debian.org#https://mirrors.163.com#g' /etc/apt/sources.list
+# 允许ssh tcp forward
+vim /etc/ssh/sshd.config
+AllowTcpForwarding
+
+# 更换源加速。参考[源](https://cloud.tencent.com/developer/article/1590080)
+sed -i 's/deb.debian.org/mirrors.cloud.tencent.com/' /etc/apt/sources.list
+sed -i 's/deb.debian.org/mirrors.cloud.tencent.com/' /etc/apt/sources.list.d/openmediavault-kernel-backports.list
+sed -i 's/deb.debian.org/mirrors.cloud.tencent.com/' /etc/apt/sources.list.d/openmediavault-os-security.list
+
 apt update
 apt upgrade
 
+apt install -y pip git apt-file sysstat lm-sensors
+sensors-detect
 
+# zh_CN.UTF-8。中文文件名乱码
+dpkg-reconfigure locales
+# remove wrong setting
+vim ~/.profile
 ```
 
 ## 安装omv-extres
 
 ```
 wget -O - https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install | bash
+
+# 会覆盖apt信息，要手动改回
+
+
+# 安装openmediavault-compose失败
+# 手动安装
 ```
 
 ## ddns
@@ -29,6 +49,8 @@ wget -O - https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/maste
 需要你是外网动态ip，并采用了dnspod来做dns解析才使用
 
 ```bash
+pip3 install --break-system-packages  git+https://github.com/DNSPod/dnspod-python
+
 cd ddns
 mv .env.sample .env
 vim .env
@@ -36,7 +58,7 @@ crontab -e
 */5 * * * * python3 /root/omv/ddns/ddns.py >> /root/omv/ddns/ddns.log 2>&1
 ```
 
-## 安装docker
+## ~~安装docker~~，使用openmediavault-compose安装
 
 ``` bash
 apt install docker.io docker-compose python3-pip python3-setuptools
@@ -68,16 +90,12 @@ certbot_dnspod_token = <your token>
 
 2. 创建域名证书，配置文件参考`docker-compose.yml`。其他域名参照配置。在letsencrypt目录运行`docker-compose run roybi.net`生成
 
-```yml
-  roybi.net:
-    build: .
-    command: certonly --authenticator certbot-dnspod --certbot-dnspod-credentials /etc/letsencrypt/roybi.net.txt -d roybi.net -d *.roybi.net
-    volumes:
-      - ../../certs:/etc/letsencrypt
-      #- /var/lib/letsencrypt:/var/lib/letsencrypt
-      #- ./venv:/opt/certbot/venv
-    stdin_open: true
-    tty: true
+```bash
+$cd letsencrypt
+$vim .env
+HOST_CERT_DIR=../../certs
+DOMAIN=roybi.net
+
 ```
 
 3. 证书采用快捷方式，方便seafile直接调用
@@ -123,6 +141,14 @@ docker-compose up -d
 ## seafile
 
 [社区版专业版转换](https://manual-cn-origin.seafile.com/deploy_pro/migrate_from_seafile_community_server)，docker版只用其中的migrate
+
+### gc
+
+```
+docker-compose exec seafile bash
+./seafile-server-latest/seaf-gc.sh -t 1
+
+```
 
 ### 更新nginx模板
 

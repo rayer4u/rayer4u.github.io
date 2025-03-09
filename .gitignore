@@ -2,4 +2,9 @@
 .env
 **/data/
 omv/certs/
-tmp/
+/tmp/
+/certs/
+
+__pycache__
+
+/omv/emby/
