@@ -1,0 +1,16 @@
+{{ define "email.subject" }}
+[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}: {{ .CommonLabels.instance }}
+{{ end }}
+
+{{ define "email.body" }}
+{{ range .Alerts }}
+Alert: {{ .Annotations.summary }}
+<br>
+Description: {{ .Annotations.description }}
+<br>
+Severity: {{ .Labels.severity }}
+<br>
+Instance: {{ .Labels.instance }}
+{{ end }}
+
+{{ end }}

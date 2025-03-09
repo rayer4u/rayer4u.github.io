@@ -1,0 +1,21 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: smtp.163.com:465
+  smtp_from: someone@somemail.com
+  smtp_auth_username: someone@somemail.com
+  smtp_auth_password: xxxxxxxxxxxxx
+  # smtp_hello: 163.com
+  smtp_require_tls: false
+
+route:
+  receiver: default
+
+receivers:
+  - name: default
+    email_configs:
+      - to: roybi@163.com
+        html: '{{ template "email.body" . }}'
+        headers: { Subject: '{{ template "email.subject" . }}' }
+          # Subject: '{{ template "email.subject" . }}'
+templates:
+  - '/etc/alertmanager/alert_template.tmpl'
