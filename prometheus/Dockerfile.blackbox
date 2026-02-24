@@ -1,0 +1,12 @@
+FROM prom/blackbox-exporter:latest AS binary_source
+
+FROM ubuntu:22.04
+
+# 安装基础证书
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# 将你宿主机那个“能跑通”的二进制复制进去
+COPY --from=binary_source /bin/blackbox_exporter /bin/blackbox_exporter
+
+ENTRYPOINT ["/bin/blackbox_exporter"]
+CMD ["--config.file=/etc/blackbox_exporter/config.yml"]

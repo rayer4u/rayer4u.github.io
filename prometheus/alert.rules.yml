@@ -12,8 +12,8 @@ groups:
   - name: ssl_expiry_rules
     rules:
     - alert: SSLCertExpiringSoon
-      expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 5
-      for: 720m
+      expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 15
+      for: 1d
       labels:
         severity: warning
       annotations:
