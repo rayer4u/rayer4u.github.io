@@ -9,6 +9,7 @@ global:
 
 route:
   receiver: default
+  repeat_interval: 12h
 
 receivers:
   - name: default
