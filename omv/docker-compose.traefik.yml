@@ -1,0 +1,81 @@
+services:
+  traefik:
+    image: traefik:v3.7.12
+    restart: unless-stopped
+    ports:
+      - "${TRAEFIK_HTTP_PORT:-80}:${TRAEFIK_HTTP_PORT:-80}"
+      - "${TRAEFIK_HTTPS_PORT:-443}:${TRAEFIK_HTTPS_PORT:-443}"
+      - "${TRAEFIK_HTTPS_PORT:-443}:${TRAEFIK_HTTPS_PORT:-443}/udp"
+      - "${JELLYFIN_HTTPS_PORT:-8920}:${JELLYFIN_HTTPS_PORT:-8920}"
+      - "${JELLYFIN_HTTPS_PORT:-8920}:${JELLYFIN_HTTPS_PORT:-8920}/udp"
+      - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/acme:/etc/traefik/acme
+    environment:
+      - DOMAIN=${DOMAIN}
+      - DNSPOD_API_KEY=${DNSPOD_API_KEY}
+      - TENCENTCLOUD_SECRET_ID=${TENCENTCLOUD_SECRET_ID}
+      - TENCENTCLOUD_SECRET_KEY=${TENCENTCLOUD_SECRET_KEY}
+      - ACME_EMAIL=${ACME_EMAIL}
+      - TZ=${TIME_ZONE:-Asia/Shanghai}
+    labels:
+      - "traefik.enable=true"
+      # 泛域名证书申请路由器 (仅作触发申请 *.${DOMAIN} 与 ${DOMAIN} 泛域名证书，不拦截业务域名)
+      - "traefik.http.routers.wildcard-certs.rule=Host(`acme.${DOMAIN}`)"
+      - "traefik.http.routers.wildcard-certs.entrypoints=websecure"
+      - "traefik.http.routers.wildcard-certs.service=noop@internal"
+      - "traefik.http.routers.wildcard-certs.tls=true"
+      - "traefik.http.routers.wildcard-certs.tls.certresolver=myresolver"
+      - "traefik.http.routers.wildcard-certs.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.wildcard-certs.tls.domains[0].sans=*.${DOMAIN}"
+      # 8920 端口重定向路由：任何访问 8920 的请求精确 301 重定向到 Jellyfin 业务域名 (https://${JELLYFIN_HOST})
+      - "traefik.http.routers.jellyfin-8920.rule=HostRegexp(`^.+$`)"
+      - "traefik.http.routers.jellyfin-8920.entrypoints=jellyfin"
+      - "traefik.http.routers.jellyfin-8920.service=noop@internal"
+      - "traefik.http.routers.jellyfin-8920.tls=true"
+      - "traefik.http.routers.jellyfin-8920.middlewares=redirect-to-jellyfin"
+      - "traefik.http.middlewares.redirect-to-jellyfin.redirectregex.regex=^https?://[^/]+(:\\d+)?/(.*)$"
+      - "traefik.http.middlewares.redirect-to-jellyfin.redirectregex.replacement=https://${JELLYFIN_HOST:-media.${DOMAIN}}:${TRAEFIK_HTTPS_PORT:-443}/$${2}"
+      - "traefik.http.middlewares.redirect-to-jellyfin.redirectregex.permanent=true"
+    command:
+      # 全局设置与日志
+      - "--global.checknewversion=false"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      # API 与本地控制台
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--entrypoints.traefik.http.aliasheadersstrategy=delete"
+      # 入口点：HTTP 端口强制重定向到 HTTPS websecure
+      - "--entrypoints.web.address=:${TRAEFIK_HTTP_PORT:-80}"
+      - "--entrypoints.web.http.aliasheadersstrategy=delete"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      # 入口点：HTTPS 主网关（启用 HTTP/3，自动配置 *.${DOMAIN} 泛域名证书）
+      - "--entrypoints.websecure.address=:${TRAEFIK_HTTPS_PORT:-443}"
+      - "--entrypoints.websecure.http.aliasheadersstrategy=delete"
+      - "--entrypoints.websecure.http3=true"
+      - "--entrypoints.websecure.http.tls.certresolver=myresolver"
+      - "--entrypoints.websecure.http.tls.domains[0].main=${DOMAIN}"
+      - "--entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN}"
+      # 入口点：8920 HTTPS 端口（由内部中间件精确 301 跳转至 Jellyfin）
+      - "--entrypoints.jellyfin.address=:${JELLYFIN_HTTPS_PORT:-8920}"
+      - "--entrypoints.jellyfin.http.aliasheadersstrategy=delete"
+      - "--entrypoints.jellyfin.http3=true"
+      # Providers 提供商配置
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      # ACME DNS-01 证书解析器（兼容 DNSPod API Key）
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme/acme.json"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.provider=dnspod"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.propagation.delaybeforechecks=10s"
+      - "--certificatesresolvers.myresolver.acme.dnschallenge.resolvers=119.29.29.29:53,223.5.5.5:53"
+
+

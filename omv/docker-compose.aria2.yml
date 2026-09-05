@@ -1,0 +1,37 @@
+services:
+  aria2:
+    image: superng6/aria2
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - SECRET=${ARIA2_SECRET}
+    volumes:
+      - ${ARIA2_DATA_DIR:-./data/aria2}:/config
+      - ${HTML_DATA_DIR:-./data/html}:/downloads
+    ports:
+      - "${ARIA2_BT_PORT:-6881}:6881"
+      - "${ARIA2_BT_PORT:-6881}:6881/udp"
+    labels:
+      - "traefik.enable=true"
+      # Aria2 RPC 接口 (https://aria.${DOMAIN}/jsonrpc)
+      - "traefik.http.routers.aria2-rpc.rule=Host(`${ARIANG_HOST:-aria.${DOMAIN}}`) && PathPrefix(`/jsonrpc`)"
+      - "traefik.http.routers.aria2-rpc.entrypoints=websecure"
+      - "traefik.http.routers.aria2-rpc.tls=true"
+      - "traefik.http.routers.aria2-rpc.middlewares=lan-only@file"
+      - "traefik.http.services.aria2-rpc.loadbalancer.server.port=6800"
+
+  ariang:
+    image: superng6/ariang:latest
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # AriaNg Web 控制台 (https://aria.${DOMAIN})
+      - "traefik.http.routers.ariang.rule=Host(`${ARIANG_HOST:-aria.${DOMAIN}}`)"
+      - "traefik.http.routers.ariang.entrypoints=websecure"
+      - "traefik.http.routers.ariang.tls=true"
+      - "traefik.http.routers.ariang.middlewares=lan-only@file"
+      - "traefik.http.services.ariang.loadbalancer.server.port=80"
+
+
+

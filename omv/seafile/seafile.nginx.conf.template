@@ -1,39 +1,7 @@
 # -*- mode: nginx -*-
 # Auto generated at {{ current_timestr }}
-{% if https -%}
 server {
     listen 80;
-    server_name _ default_server;
-
-    # allow certbot to connect to challenge location via HTTP Port 80
-    # otherwise renewal request will fail
-    location /.well-known/acme-challenge/ {
-        alias /var/www/challenges/;
-        try_files $uri =404;
-    }
-
-    location / {
-        rewrite ^ https://{{ domain }}$request_uri? permanent;
-    }
-}
-{% endif -%}
-
-server {
-{% if https -%}
-    listen 443 ssl;
-    ssl_certificate      /shared/ssl/{{ domain }}.crt;
-    ssl_certificate_key  /shared/ssl/{{ domain }}.key;
-
-    ssl_ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS;
-
-    # TODO: More SSL security hardening: ssl_session_tickets & ssl_dhparam
-    # ssl_session_tickets on;
-    # ssl_session_ticket_key /etc/nginx/sessionticket.key;
-    # ssl_session_cache shared:SSL:10m;
-    # ssl_session_timeout 10m;
-{% else -%}
-    listen 80;
-{% endif -%}
 
     server_name {{ domain }};
 

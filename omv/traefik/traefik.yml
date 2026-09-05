@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://json.schemastore.org/traefik-v3.json
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: DEBUG
+
+accessLog: {}
+
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  traefik:
+    http:
+      aliasHeadersStrategy: delete
+
+  web:
+    address: ":80"
+    http:
+      aliasHeadersStrategy: delete
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http3: {}
+    http:
+      aliasHeadersStrategy: delete
+
+  jellyfin:
+    address: ":8920"
+    http3: {}
+    http:
+      aliasHeadersStrategy: delete
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      storage: "/etc/traefik/acme/acme.json"
+      dnsChallenge:
+        provider: tencentcloud
+        propagation:
+          delayBeforeChecks: "10s"
+        resolvers:
+          - "119.29.29.29:53"
+          - "223.5.5.5:53"

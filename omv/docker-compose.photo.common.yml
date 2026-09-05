@@ -1,0 +1,60 @@
+services:
+  photo-common:
+    image: photoprism/photoprism:260728
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    environment:
+      PHOTOPRISM_ADMIN_USER: ${PHOTOPRISM_ADMIN_USER}
+      PHOTOPRISM_ADMIN_PASSWORD: ${PHOTOPRISM_ADMIN_PASSWORD}
+      PHOTOPRISM_AUTH_MODE: "password"
+      PHOTOPRISM_DISABLE_TLS: "true"
+      PHOTOPRISM_SITE_URL: "${PHOTOPRISM_SITE_URL:-https://${PHOTO_HOST:-photo.${DOMAIN}}}"
+      PHOTOPRISM_SITE_TITLE: "${PHOTOPRISM_SITE_TITLE:-PhotoPrism}"
+      PHOTOPRISM_SITE_CAPTION: "${PHOTOPRISM_SITE_CAPTION:-Personal Photo & Video Library}"
+      PHOTOPRISM_DEFAULT_LOCALE: "${PHOTOPRISM_DEFAULT_LOCALE:-zh}"
+      PHOTOPRISM_TIMEZONE: "${TIME_ZONE:-Asia/Shanghai}"
+      PHOTOPRISM_DEBUG: "${PHOTOPRISM_DEBUG:-false}"
+      PHOTOPRISM_UID: "${PUID:-1000}"
+      PHOTOPRISM_GID: "${PGID:-1000}"
+      PHOTOPRISM_UMASK: "${PHOTOPRISM_UMASK:-0002}"
+
+      # 数据库连接 (MariaDB)
+      PHOTOPRISM_DATABASE_DRIVER: "mysql"
+      PHOTOPRISM_DATABASE_SERVER: "${PHOTOPRISM_DATABASE_SERVER:-db:3306}"
+      PHOTOPRISM_DATABASE_NAME: ${PHOTOPRISM_DATABASE_NAME}
+      PHOTOPRISM_DATABASE_USER: ${PHOTOPRISM_DATABASE_USER}
+      PHOTOPRISM_DATABASE_PASSWORD: ${PHOTOPRISM_DATABASE_PASSWORD}
+
+      # 权限模式 & AI 功能 & 索引配置 & 大小限制
+      PHOTOPRISM_PUBLIC: "${PHOTOPRISM_PUBLIC:-true}"
+      PHOTOPRISM_DISABLE_FACES: "${PHOTOPRISM_DISABLE_FACES:-false}"
+      PHOTOPRISM_DISABLE_CLASSIFICATION: "${PHOTOPRISM_DISABLE_CLASSIFICATION:-false}"
+      PHOTOPRISM_DISABLE_RAW: "${PHOTOPRISM_DISABLE_RAW:-false}"
+      PHOTOPRISM_ORIGINALS_READONLY: "${PHOTOPRISM_ORIGINALS_READONLY:-true}"
+      PHOTOPRISM_UPLOAD_LIMIT: "${PHOTOPRISM_UPLOAD_LIMIT:--1}"
+      PHOTOPRISM_ORIGINALS_LIMIT: "${PHOTOPRISM_ORIGINALS_LIMIT:--1}"
+
+      # 视频转码与播放优化 (限制 1080P/16Mbps，极大缩短等待时间，避免 4K 阻塞)
+      PHOTOPRISM_FFMPEG_SIZE: "${PHOTOPRISM_FFMPEG_SIZE:-1920}"
+      PHOTOPRISM_FFMPEG_BITRATE: "${PHOTOPRISM_FFMPEG_BITRATE:-16}"
+    volumes:
+      # 原始照片/视频目录 (对齐 Rclone 挂载输出的 MinIO 照片目录，采用安全的 rslave 单向传播)
+      - "${PHOTOPRISM_ORIGINALS_DIR:-./data/minio/life}:/photoprism/originals:rslave"
+      # 内部元数据、缩略图、转码缓存
+      - "${PHOTOPRISM_STORAGE_DIR:-./data/photoprism/storage}:/photoprism/storage"
+      # 用户导入目录 (可选)
+      - "${PHOTOPRISM_IMPORT_DIR:-./data/photoprism/import}:/photoprism/import"
+    labels:
+      - "traefik.enable=true"
+      # Photoprism 路由 (https://photo.${DOMAIN})
+      - "traefik.http.routers.photoprism.rule=Host(`${PHOTO_HOST:-photo.${DOMAIN}}`)"
+      - "traefik.http.routers.photoprism.entrypoints=websecure"
+      - "traefik.http.routers.photoprism.tls=true"
+      - "traefik.http.services.photoprism.loadbalancer.server.port=2342"
+    depends_on:
+      db:
+        condition: service_healthy
+      rclone:
+        condition: service_healthy

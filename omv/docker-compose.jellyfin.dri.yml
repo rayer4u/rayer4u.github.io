@@ -1,0 +1,10 @@
+services:
+  jellyfin:
+    extends:
+      file: docker-compose.jellyfin.common.yml
+      service: jellyfin-common
+    group_add:
+      - "${RENDER_GID:-105}" # getent group render | cut -d: -f3
+      - "${VIDEO_GID:-44}"   # getent group video | cut -d: -f3
+    devices:
+      - /dev/dri:/dev/dri # Linux DRI 渲染节点 (VA-API / QSV)

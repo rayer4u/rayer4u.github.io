@@ -1,0 +1,11 @@
+services:
+  jellyfin:
+    extends:
+      file: docker-compose.jellyfin.common.yml
+      service: jellyfin-common
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]

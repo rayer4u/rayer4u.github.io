@@ -1,0 +1,28 @@
+services:
+  db:
+    image: mariadb:12.3
+    restart: unless-stopped
+    expose:
+      - "3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWD}
+      - MYSQL_LOG_CONSOLE=true
+    volumes:
+      - "${DB_DATA_DIR:-./data/mysql/db}:/var/lib/mysql:rw"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  memcached:
+    image: memcached:1.6.18
+    restart: unless-stopped
+    entrypoint: memcached -m 256
+    expose:
+      - "11211"
+    networks:
+      default:
+        aliases:
+          - cache

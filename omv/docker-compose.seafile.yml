@@ -1,0 +1,46 @@
+services:
+  elasticsearch:
+    image: elasticsearch:7.16.2
+    restart: unless-stopped
+    user: 1000:0
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - "${ES_DATA_DIR:-./data/elasticsearch}:/usr/share/elasticsearch/data"
+
+  seafile:
+    image: docker.seafile.top/seafileltd/seafile-pro-mc:9.0.16
+    restart: unless-stopped
+    volumes:
+      - "${SEAFILE_DATA_DIR:-./data/seafile/data}:/shared:rw"
+      - "${SEAFILE_NGINX_TEMPLATE:-./seafile/seafile.nginx.conf.template}:/templates/seafile.nginx.conf.template:ro"
+    environment:
+      - DB_HOST=db
+      - TIME_ZONE=${TIME_ZONE:-Etc/UTC}
+      - DB_ROOT_PASSWD
+      - SEAFILE_ADMIN_EMAIL
+      - SEAFILE_ADMIN_PASSWORD
+      - SEAFILE_SERVER_LETSENCRYPT=${SEAFILE_SERVER_LETSENCRYPT:-false}
+      - SEAFILE_SERVER_HOSTNAME=${SEAFILE_HOST:-pan.${DOMAIN}}
+    depends_on:
+      db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      # Seafile 路由 (同时支持 https://pan.${DOMAIN} 与主域名 https://${DOMAIN}，复用 *.${DOMAIN} 泛域名证书)
+      - "traefik.http.routers.seafile.rule=Host(`${SEAFILE_HOST:-pan.${DOMAIN}}`) || Host(`${DOMAIN}`)"
+      - "traefik.http.routers.seafile.entrypoints=websecure"
+      - "traefik.http.routers.seafile.tls=true"
+      - "traefik.http.services.seafile.loadbalancer.server.port=80"

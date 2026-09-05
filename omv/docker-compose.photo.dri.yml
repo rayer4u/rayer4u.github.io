@@ -1,0 +1,14 @@
+services:
+  photo:
+    extends:
+      file: docker-compose.photo.common.yml
+      service: photo-common
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${RENDER_GID:-105}" # getent group render | cut -d: -f3
+      - "${VIDEO_GID:-44}"   # getent group video | cut -d: -f3
+    devices:
+      - /dev/dri:/dev/dri # Linux DRI 渲染节点 (Intel QSV / AMD VA-API/Vulkan)
+    environment:
+      PHOTOPRISM_FFMPEG_ENCODER: "${PHOTO_ENCODER:-intel}"
+      PHOTOPRISM_INIT: "${PHOTO_INIT:-intel}"
