@@ -5,6 +5,18 @@ services:
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
+    entrypoint:
+      - "/bin/bash"
+      - "-c"
+      - |
+        echo "[PhotoPrism 挂载检查] 检查相册目录是否已完成 Rclone 挂载..."
+        if [ ! -d "/photoprism/originals" ] || [ -z "$$(ls -A /photoprism/originals 2>/dev/null)" ]; then
+          echo "[PhotoPrism 挂载检查] 目录为空（Rclone 尚未挂载好），退出容器等待 Docker 自动重试..."
+          sleep 5
+          exit 1
+        fi
+        echo "[PhotoPrism 挂载检查] 挂载就绪，正常启动 PhotoPrism 主进程！"
+        exec /init
     environment:
       PHOTOPRISM_ADMIN_USER: ${PHOTOPRISM_ADMIN_USER}
       PHOTOPRISM_ADMIN_PASSWORD: ${PHOTOPRISM_ADMIN_PASSWORD}

@@ -3,6 +3,18 @@ services:
     image: jellyfin/jellyfin:10.10.3
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        echo "[Jellyfin 挂载检查] 检查媒体库目录是否已完成 Rclone 挂载..."
+        if [ ! -d "/media" ] || [ -z "$$(ls -A /media 2>/dev/null)" ]; then
+          echo "[Jellyfin 挂载检查] 目录为空（Rclone 尚未挂载好），退出容器等待 Docker 自动重试..."
+          sleep 5
+          exit 1
+        fi
+        echo "[Jellyfin 挂载检查] 挂载就绪，正常启动 Jellyfin 主进程！"
+        exec /jellyfin/jellyfin "$$@"
     volumes:
       - "${JELLYFIN_DATA_DIR:-./data/jellyfin}/config:/config"
       - "${JELLYFIN_DATA_DIR:-./data/jellyfin}/cache:/cache"

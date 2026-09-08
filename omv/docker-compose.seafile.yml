@@ -43,4 +43,6 @@ services:
       - "traefik.http.routers.seafile.rule=Host(`${SEAFILE_HOST:-pan.${DOMAIN}}`) || Host(`${DOMAIN}`)"
       - "traefik.http.routers.seafile.entrypoints=websecure"
       - "traefik.http.routers.seafile.tls=true"
+      - "traefik.http.routers.seafile.middlewares=security-headers@file,seafile-ratelimit@file"
       - "traefik.http.services.seafile.loadbalancer.server.port=80"
+

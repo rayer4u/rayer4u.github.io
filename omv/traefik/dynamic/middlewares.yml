@@ -29,12 +29,13 @@ http:
         contentSecurityPolicy: "default-src https: data: blob: ; img-src 'self' https://* ; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.youtube.com blob:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'self'; font-src 'self'"
 
     # Traefik Dashboard BasicAuth 认证中间件
-    # 默认用户名为 admin，密码可通过 htpasswd 生成替换
-    # 例如: echo $(htpasswd -nb admin 123456) | sed -e s/\\$/\\$\\$/g
+    # 默认用户名为 admin，默认密码为 admin123
+    # 注意：在 dynamic/*.yml 文件中必须使用单字符 $（只有在 Docker Compose Labels 中才需要写 $$ 转义）
     dashboard-auth:
       basicAuth:
         users:
-          - "admin:$$apr1$$ruca84Hq$$mbjdMZBAG.KWn7vfN/SNK/" # 默认密码: admin123
+          - 'admin:$apr1$ruca84Hq$7mH96chX5OhD1LU3eqtXU.' # 默认密码: admin123
+
 
     # 局域网白名单限制中间件 (仅允许私有 IP 网段与本地回环，公网请求拒绝 403)
     lan-only:
@@ -47,3 +48,11 @@ http:
           - "::1/128"             # IPv6 回环
           - "fc00::/7"            # IPv6 唯一本地地址 (ULA)
           - "fe80::/10"           # IPv6 链路本地地址 (Link-local)
+
+    # Seafile / 业务防爆破与防高频扫描限制中间件
+    seafile-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
