@@ -41,6 +41,16 @@ entryPoints:
     http:
       aliasHeadersStrategy: delete
 
+  minio:
+    address: ":9000"
+    http:
+      aliasHeadersStrategy: delete
+
+  minio-console:
+    address: ":9001"
+    http:
+      aliasHeadersStrategy: delete
+
 
 providers:
   docker:

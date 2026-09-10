@@ -7,9 +7,24 @@ services:
       - "${data2:-./data/data1-2}:/data2"
       - "${data3:-./data/data2-1}:/data3"
       - "${data4:-./data/data2-2}:/data4"
-    ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    labels:
+      - "traefik.enable=true"
+
+      # 1. MinIO S3 API (端口 9000, 专属 minio entryPoint, HTTPS 绿锁, 局域网白名单 lan-only)
+      - "traefik.http.routers.minio-s3.rule=Host(`minio.${DOMAIN:-roybi.net}`)"
+      - "traefik.http.routers.minio-s3.entrypoints=minio"
+      - "traefik.http.routers.minio-s3.tls=true"
+      - "traefik.http.routers.minio-s3.middlewares=lan-only@file"
+      - "traefik.http.routers.minio-s3.service=minio-s3-svc"
+      - "traefik.http.services.minio-s3-svc.loadbalancer.server.port=9000"
+
+      # 2. MinIO 控制台 Console (端口 9001, 专属 minio-console entryPoint, HTTPS 绿锁, 管理员专属 admin-ip-only)
+      - "traefik.http.routers.minio-console.rule=Host(`minio.${DOMAIN:-roybi.net}`)"
+      - "traefik.http.routers.minio-console.entrypoints=minio-console"
+      - "traefik.http.routers.minio-console.tls=true"
+      - "traefik.http.routers.minio-console.middlewares=admin-ip-only@file,security-headers@file"
+      - "traefik.http.routers.minio-console.service=minio-console-svc"
+      - "traefik.http.services.minio-console-svc.loadbalancer.server.port=9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
@@ -49,7 +64,10 @@ services:
       - "--vfs-cache-mode=full"
       - "--vfs-cache-max-size=50G"
       - "--vfs-cache-max-age=24h"
-      - "--dir-cache-time=72h"
+      - "--dir-cache-time=1m"
+      - "--rc"
+      - "--rc-addr=:5572"
+      - "--rc-no-auth"
       - "--buffer-size=32M"
       - "--vfs-read-chunk-size=16M"
       - "--vfs-read-chunk-size-limit=256M"

@@ -8,6 +8,8 @@ services:
       - "${TRAEFIK_HTTPS_PORT:-443}:443/udp"
       - "${JELLYFIN_HTTPS_PORT:-8920}:8920"
       - "${JELLYFIN_HTTPS_PORT:-8920}:8920/udp"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
       # Dashboard 已收敛至 HTTPS 域名 (https://traefik.${DOMAIN}) 并受 BasicAuth 保护，不再开放未鉴权的 8080 端口
       # - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
     volumes:

@@ -49,6 +49,13 @@ http:
           - "fc00::/7"            # IPv6 唯一本地地址 (ULA)
           - "fe80::/10"           # IPv6 链路本地地址 (Link-local)
 
+    # 管理员固定 IP 白名单中间件 (仅允许指定的单点 IP 访问管理，其余全部 403 拦截)
+    admin-ip-only:
+      ipAllowList:
+        sourceRange:
+          - "127.0.0.1/32"             # 建议保留本机回环（防本地健康探测失败）
+          # - "192.168.1.188/32"         # 示例：您的固定管理电脑/手机内网 IP
+
     # Seafile / 业务防爆破与防高频扫描限制中间件
     seafile-ratelimit:
       rateLimit:
