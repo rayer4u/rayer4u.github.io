@@ -51,6 +51,7 @@ services:
       # 视频转码与播放优化 (限制 1080P/16Mbps，极大缩短等待时间，避免 4K 阻塞)
       PHOTOPRISM_FFMPEG_SIZE: "${PHOTOPRISM_FFMPEG_SIZE:-1920}"
       PHOTOPRISM_FFMPEG_BITRATE: "${PHOTOPRISM_FFMPEG_BITRATE:-16}"
+      PHOTOPRISM_WORKERS: "${PHOTOPRISM_WORKERS:-1}"
     volumes:
       # 原始照片/视频目录 (对齐 Rclone 挂载输出的 MinIO 照片目录，采用安全的 rslave 单向传播)
       - "${PHOTOPRISM_ORIGINALS_DIR:-./data/minio/life}:/photoprism/originals:rslave"
@@ -68,5 +69,5 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      rclone:
+      rclone-life:
         condition: service_healthy

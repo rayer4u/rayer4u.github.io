@@ -30,5 +30,5 @@ services:
       - "traefik.http.routers.jellyfin.tls=true"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     depends_on:
-      rclone:
+      rclone-media:
         condition: service_healthy

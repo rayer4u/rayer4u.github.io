@@ -37,12 +37,10 @@ services:
       timeout: 20s
       retries: 3
 
-  rclone:
+  rclone-media:
     image: rclone/rclone:latest
     restart: unless-stopped
     environment:
-      - RCLONE_CONFIG_LIFE_ACCESS_KEY_ID=${RCLONE_CONFIG_LIFE_ACCESS_KEY_ID}
-      - RCLONE_CONFIG_LIFE_SECRET_ACCESS_KEY=${RCLONE_CONFIG_LIFE_SECRET_ACCESS_KEY}
       - RCLONE_CONFIG_MEDIA_ACCESS_KEY_ID=${RCLONE_CONFIG_MEDIA_ACCESS_KEY_ID}
       - RCLONE_CONFIG_MEDIA_SECRET_ACCESS_KEY=${RCLONE_CONFIG_MEDIA_SECRET_ACCESS_KEY}
     cap_add:
@@ -53,21 +51,15 @@ services:
       - apparmor:unconfined
     volumes:
       - "${RCLONE_CONF_PATH:-./rclone/rclone.conf}:/root/.config/rclone/rclone.conf:ro"
-      - "${RCLONE_MOUNT_DIR:-./data/minio}:/data/minio:rshared"
-      - "${RCLONE_CACHE_DIR:-./data/rclone_cache}:/root/.cache/rclone"
+      - "${JELLYFIN_MEDIA_DIR:-./data/minio/jellyfin}:/data/minio/jellyfin:rshared"
     command:
       - "mount"
-      - "${RCLONE_REMOTE_PATH:-my_minio:}"
-      - "/data/minio"
+      - "media:media"
+      - "/data/minio/jellyfin"
+      - "--read-only"
       - "--allow-other"
       - "--allow-non-empty"
-      - "--vfs-cache-mode=full"
-      - "--vfs-cache-max-size=50G"
-      - "--vfs-cache-max-age=24h"
       - "--dir-cache-time=1m"
-      - "--rc"
-      - "--rc-addr=:5572"
-      - "--rc-no-auth"
       - "--buffer-size=32M"
       - "--vfs-read-chunk-size=16M"
       - "--vfs-read-chunk-size-limit=256M"
@@ -75,7 +67,49 @@ services:
       - "--vfs-fast-fingerprint"
       - "--s3-no-check-bucket"
     healthcheck:
-      test: ["CMD-SHELL", "pidof rclone > /dev/null && grep -q ' /data/minio fuse.rclone ' /proc/mounts || exit 1"]
+      test: ["CMD-SHELL", "pidof rclone > /dev/null && grep -q ' /data/minio/jellyfin fuse.rclone ' /proc/mounts || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  rclone-life:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    environment:
+      - RCLONE_CONFIG_LIFE_ACCESS_KEY_ID=${RCLONE_CONFIG_LIFE_ACCESS_KEY_ID}
+      - RCLONE_CONFIG_LIFE_SECRET_ACCESS_KEY=${RCLONE_CONFIG_LIFE_SECRET_ACCESS_KEY}
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - "${RCLONE_CONF_PATH:-./rclone/rclone.conf}:/root/.config/rclone/rclone.conf:ro"
+      - "${PHOTOPRISM_ORIGINALS_DIR:-./data/minio/life}:/data/minio/life:rshared"
+      - "${RCLONE_CACHE_DIR:-./data/rclone_cache}:/root/.cache/rclone"
+    command:
+      - "mount"
+      - "life:life/originals"
+      - "/data/minio/life"
+      - "--allow-other"
+      - "--allow-non-empty"
+      - "--vfs-cache-mode=full"
+      - "--vfs-cache-max-size=50G"
+      - "--vfs-cache-max-age=24h"
+      - "--dir-cache-time=1m"
+      - "--buffer-size=32M"
+      - "--vfs-read-chunk-size=16M"
+      - "--vfs-read-chunk-size-limit=256M"
+      - "--vfs-read-ahead=32M"
+      - "--vfs-fast-fingerprint"
+      - "--s3-no-check-bucket"
+    healthcheck:
+      test: ["CMD-SHELL", "pidof rclone > /dev/null && grep -q ' /data/minio/life fuse.rclone ' /proc/mounts || exit 1"]
       interval: 15s
       timeout: 3s
       retries: 3
