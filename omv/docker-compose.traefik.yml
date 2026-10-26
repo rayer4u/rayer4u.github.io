@@ -1,7 +1,24 @@
 services:
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-proxy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - NETWORKS=1
+      - EVENTS=1
+      - PING=1
+      - VERSION=1
+    networks:
+      - docker-proxy
+
   traefik:
     image: traefik:v3.7.12
     restart: unless-stopped
+    depends_on:
+      - docker-proxy
     ports:
       - "${TRAEFIK_HTTP_PORT:-80}:80"
       - "${TRAEFIK_HTTPS_PORT:-443}:443"
@@ -13,20 +30,26 @@ services:
       # Dashboard 已收敛至 HTTPS 域名 (https://traefik.${DOMAIN}) 并受 BasicAuth 保护，不再开放未鉴权的 8080 端口
       # - "127.0.0.1:${TRAEFIK_DASHBOARD_PORT:-8080}:8080"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - ./traefik/acme:/etc/traefik/acme
+      - ${HOST_CERT_DIR:-./certs}:/etc/traefik/certs:ro
     environment:
       - DOMAIN=${DOMAIN}
-      - TENCENTCLOUD_SECRET_ID=${TENCENTCLOUD_SECRET_ID}
-      - TENCENTCLOUD_SECRET_KEY=${TENCENTCLOUD_SECRET_KEY}
       - TZ=${TIME_ZONE:-Asia/Shanghai}
 
-      # 动态配置与证书环境变量
+      # 动态配置环境变量
       - JELLYFIN_HOST=${JELLYFIN_HOST:-media.${DOMAIN}}
       - TRAEFIK_HTTPS_PORT=${TRAEFIK_HTTPS_PORT:-443}
-      - TRAEFIK_CERTIFICATESRESOLVERS_MYRESOLVER_ACME_EMAIL=${ACME_EMAIL}
+    networks:
+      - default
+      - docker-proxy
+
+networks:
+  docker-proxy:
+    internal: true
+
+
+
 
 
 

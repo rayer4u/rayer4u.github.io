@@ -32,8 +32,7 @@ entryPoints:
     http3: {}
     http:
       aliasHeadersStrategy: delete
-      tls:
-        certResolver: myresolver
+      tls: {}
 
   jellyfin:
     address: ":8920"
@@ -54,22 +53,10 @@ entryPoints:
 
 providers:
   docker:
-    endpoint: "unix:///var/run/docker.sock"
+    endpoint: "tcp://docker-proxy:2375"
     exposedByDefault: false
   file:
     directory: "/etc/traefik/dynamic"
     watch: true
 
-certificatesResolvers:
-  myresolver:
-    acme:
-      storage: "/etc/traefik/acme/acme.json"
-      dnsChallenge:
-        provider: tencentcloud
-        propagation:
-
-          delayBeforeChecks: "10s"
-        resolvers:
-          - "119.29.29.29:53"
-          - "223.5.5.5:53"
 

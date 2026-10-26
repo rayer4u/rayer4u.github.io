@@ -12,20 +12,7 @@ http:
         - "dashboard-auth@file"
         - "security-headers@file"
 
-    # 2. 泛域名证书申请路由器 (触发申请 *.${DOMAIN} 与 ${DOMAIN} 泛域名证书，不拦截业务域名)
-    wildcard-certs:
-      rule: "Host(`acme.{{ env "DOMAIN" }}`)"
-      entryPoints:
-        - "websecure"
-      service: "noop@internal"
-      tls:
-        certResolver: "myresolver"
-        domains:
-          - main: "{{ env "DOMAIN" }}"
-            sans:
-              - "*.{{ env "DOMAIN" }}"
-
-    # 3. 8920 历史端口精确 301 重定向到 Jellyfin 业务域名
+    # 2. 8920 历史端口精确 301 重定向到 Jellyfin 业务域名
     jellyfin-8920:
       rule: "HostRegexp(`^.+$`)"
       entryPoints:

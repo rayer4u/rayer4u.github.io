@@ -258,3 +258,29 @@ MAX_NUMBER_OF_FILES_FOR_FILEUPLOAD
 ## 参考
 
 - [Setup With Amazon S3](https://manual.seafile.com/deploy_pro/setup_with_amazon_s3/)
+
+## mail
+
+omv-confdbadm read conf.system.notification.email
+
+omv-confdbadm update conf.system.notification.email '{
+  "enable": true,
+  "server": "smtp.163.com",
+  "port": 465,
+  "tls": false,
+  "ssl": true,
+  "sender": "13927458036@163.com",
+  "auth": true,
+  "username": "13927458036@163.com",
+  "password": "<你的163授权码>",
+  "primaryemail": "478201761@qq.com"
+}'
+
+omv-salt deploy run postfix
+omv-salt deploy run monit
+systemctl restart postfix monit
+
+echo "这是一封来自 OMV 本地 Postfix 的测试邮件" | mail -s "OMV Mail Test" 13927458036@qq.com
+journalctl -u postfix@- -n 50 --no-pager
+
+sudo postsuper -d ALL
