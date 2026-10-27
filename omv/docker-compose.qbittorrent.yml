@@ -1,0 +1,25 @@
+services:
+  qbittorrent:
+    image: superng6/qbittorrent:latest
+    # 若需防吸血增强版，可切换为: image: superng6/qbittorrentee:latest
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TIME_ZONE:-Asia/Shanghai}
+      - WEBUI_PORT=8085
+    volumes:
+      - "${QBITTORRENT_DATA_DIR:-./data/qbittorrent}:/config"
+      - "${DOWNLOAD_DATA_DIR:-./data/downloads}:/downloads"
+    ports:
+      - "${QBITTORRENT_BT_PORT:-56881}:56881"
+      - "${QBITTORRENT_BT_PORT:-56881}:56881/udp"
+      - "${QBITTORRENT_WEB_PORT:-8085}:8085"
+    labels:
+      - "traefik.enable=true"
+      # qBittorrent Web 控制台 (https://qb.${DOMAIN})
+      - "traefik.http.routers.qbittorrent.rule=Host(`${QBITTORRENT_HOST:-qb.${DOMAIN}}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.middlewares=lan-only@file"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=8085"

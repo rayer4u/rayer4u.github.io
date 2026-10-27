@@ -5,6 +5,7 @@ include:
   - path: docker-compose.seafile.yml
   - path: ${JELLYFIN_COMPOSE:-docker-compose.jellyfin.nvidia.yml}
   - path: docker-compose.aria2.yml
+  - path: docker-compose.qbittorrent.yml
   - path: ${PHOTO_COMPOSE:-docker-compose.photo.nvidia.yml}
   - path: docker-compose.nginx.yml
 

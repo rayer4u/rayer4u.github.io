@@ -105,12 +105,14 @@ docker compose exec acme-sh acme.sh --install-cert \
   -d *.roybi.net \
   --key-file /certs/privkey.pem \
   --fullchain-file /certs/fullchain.pem \
-  --reloadcmd "chmod 644 /certs/privkey.pem"
+  --reloadcmd "chown -R 1000:1000 /certs && chmod 600 /certs/privkey.pem"
 ```
 
-> **参数说明**：
+> **参数与权限说明**：
 > - `--ecc`：指定提取 ECC 证书（对应 `roybi.net_ecc` 目录）；
-> - `--reloadcmd "chmod 644 /certs/privkey.pem"`：证书续期完成后自动将私钥权限放开为 644，确保 Traefik、Nginx 等以普通用户（UID 1000）运行的网关可以无障碍只读读取。
+> - `--reloadcmd "chown -R 1000:1000 /certs && chmod 600 /certs/privkey.pem"`：
+>   - **严格安全基线**：私钥权限维持绝对安全的 `600`（避免很多严格模式的服务如 Traefik 因 `permissions are too open` 拒绝启动）；
+>   - **属主适配**：由于 `acme-sh` 容器以 root 运行，导出的证书属主默认为 root。通过 `chown -R 1000:1000` 将所有者移交给普通用户（UID 1000，如 Traefik、Nginx），确保非 root 容器能够安全读取 `600` 私钥。
 
 ---
 
