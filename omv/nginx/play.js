@@ -19,7 +19,7 @@ function xorDecrypt(b64url, key) {
     return out.toString('utf8');
 }
 
-// 签发 API：将原始 URI 混淆加密，并将文件名主体随机化（彻底隐藏原名和路径）
+// 签发 API：生成标准优雅的 RESTful 目录层级 URL: /play/<token>/<expires>/<md5>/<random>.mp4
 function getSign(r) {
     var uri = r.args.uri;
     if (!uri) {
@@ -32,35 +32,48 @@ function getSign(r) {
     var expires = Math.floor(Date.now() / 1000) + 14400; // 4 个小时有效 (14400s)
     var encKey = secret + "_" + expires;
 
-    // 仅保留原视频后缀（如 .mp4, .mkv），保证播放器正常识别流媒体容器格式；文件名主体彻底随机化
     var ext = uri.lastIndexOf('.') !== -1 ? uri.substring(uri.lastIndexOf('.')) : '.mp4';
     var crypto = require('crypto');
-    var randomName = crypto.createHash('md5')
-                           .update(uri + expires + Math.random().toString())
-                           .digest('hex')
-                           .substring(0, 12) + ext;
+    var randomFilename = crypto.createHash('md5')
+                               .update(uri + expires + Math.random().toString())
+                               .digest('hex')
+                               .substring(0, 10) + ext;
 
     // 对真实相对全路径进行密钥混淆加密
     var token = xorEncrypt(uri, encKey);
 
-    // 计算防篡改签名 (时效 + 密文 + 密钥)
+    // 计算防篡改签名
     var md5 = crypto.createHash('md5').update(expires + token + secret).digest('base64url');
 
-    var playUrl = "/play/" + randomName + "?token=" + token + "&expires=" + expires + "&md5=" + md5;
+    // 格式: /play/<token>/<expires>/<md5>/<random_name>.<ext>
+    // 纯斜杠层级，无任何特殊符号，末尾是纯粹的文件名与扩展名
+    var cleanPlayUrl = "/play/" + token + "/" + expires + "/" + md5 + "/" + randomFilename;
+
     r.headersOut['Content-Type'] = 'application/json; charset=utf-8';
     r.return(200, JSON.stringify({
-        url: playUrl,
+        url: cleanPlayUrl,
         expires: expires,
         ttl: 14400
     }));
 }
 
-// 播放网关：解析 /play/ 请求，校验时效签名，内部解密重定向至真实存储
+// 播放网关：解析 /play/ 请求，解构斜杠路径参数
 function handlePlay(r) {
     var token = r.args.token;
     var expires = parseInt(r.args.expires || "0", 10);
     var md5 = r.args.md5;
     var secret = r.variables.sec_key || "omv_video_secret_key";
+
+    // 优先从优雅斜杠路径 /play/<token>/<expires>/<md5>/<filename> 中解构
+    if (!token || !expires || !md5) {
+        var parts = r.uri.replace(/^\/+|\/+$/g, '').split('/');
+        // parts 结构: ['play', token, expires, md5, filename]
+        if (parts.length >= 5 && parts[0] === 'play') {
+            token = parts[1];
+            expires = parseInt(parts[2], 10);
+            md5 = parts[3];
+        }
+    }
 
     if (!token || !expires || !md5) {
         r.return(403, "Missing security token");
@@ -82,7 +95,7 @@ function handlePlay(r) {
         return;
     }
 
-    // 3. 解密真实全路径（无需依赖 URL 中的伪装文件名）
+    // 3. 解密真实全路径
     var encKey = secret + "_" + expires;
     var realUri = "";
     try {
@@ -98,7 +111,7 @@ function handlePlay(r) {
         return;
     }
 
-    // 5. 内部重定向给底层静态文件服务 (外部完全无感知真实存储结构与原文件名)
+    // 5. 内部重定向给底层静态文件服务
     r.internalRedirect("/_internal_media/" + realUri.substring(1));
 }
 

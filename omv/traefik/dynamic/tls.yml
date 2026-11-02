@@ -7,3 +7,11 @@ tls:
       defaultCertificate:
         certFile: /etc/traefik/certs/fullchain.pem
         keyFile: /etc/traefik/certs/privkey.pem
+
+  options:
+    # 客户端双向认证可选验证策略（用于 Nginx 实现“内网访问 OR 用户证书”二选一放行）
+    client-optional:
+      clientAuth:
+        caFiles:
+          - /etc/traefik/certs/ca.crt
+        clientAuthType: VerifyClientCertIfGiven

@@ -1,6 +1,32 @@
 # 加载 NJS 播放与安全签发服务
 js_import play from /etc/nginx/njs/play.js;
 
+# 1. 判断客户端真实来源是否为内网私有网段
+geo $remote_addr $is_lan {
+    default         0;
+    127.0.0.1/32    1; # 本地回环
+    10.0.0.0/8      1; # RFC 1918 私网 A 类
+    172.16.0.0/12   1; # RFC 1918 私网 B 类 (包含 Docker 容器网络)
+    192.168.0.0/16  1; # RFC 1918 私网 C 类 (家庭/公司局域网)
+    ::1/128         1; # IPv6 回环
+    fc00::/7        1; # IPv6 唯一本地地址 (ULA)
+    fe80::/10       1; # IPv6 链路本地地址 (Link-local)
+}
+
+# 2. 判断是否持有 Traefik 验证通过的客户端用户证书 (根据 Subject CN 提取)
+map $http_x_forwarded_tls_client_cert_info $has_valid_cert {
+    default 0;
+    ~*Subject.*CN 1;
+}
+
+# 3. 核心“或 (OR)”逻辑门：只要满足 (内网访问) OR (持有用户证书) 任意一个即放行
+map "$is_lan:$has_valid_cert" $access_allowed {
+    "1:0"   1; # 内网环境，无证书 -> 放行
+    "1:1"   1; # 内网环境，有证书 -> 放行
+    "0:1"   1; # 外网环境，持有手机用户证书 -> 放行
+    default 0; # 外网环境，无证书 -> 拦截 403
+}
+
 server {
     listen       80;
     server_name  localhost;
@@ -16,8 +42,12 @@ server {
     real_ip_header    X-Forwarded-For;
     real_ip_recursive on;
 
-    # 1. 服务端 4 小时安全签名 API（密钥来自 .env 注入，受 Basic Auth 强保护）
+    # 1. 服务端 4 小时安全签名 API（受双重拦截保护：(内网 OR 证书) + Basic Auth）
     location = /api/sign {
+        if ($access_allowed = 0) {
+            return 403 "Forbidden: Access only from LAN or with trusted Client Certificate";
+        }
+
         auth_basic "who are you";
         auth_basic_user_file /opt/passwd;
 
@@ -25,7 +55,7 @@ server {
         js_content play.getSign;
     }
 
-    # 2. 独立播放拉流入口 /play/（免密拉流，隐藏底层真实目录全路径）
+    # 2. 独立播放拉流入口 /play/（免密拉流，供外部播放器临时使用，不受内网/用户证书网络限制）
     location /play/ {
         auth_basic off;
 
@@ -39,8 +69,14 @@ server {
         alias /usr/share/nginx/html/;
     }
 
-    # 4. 常规 Autoindex 目录浏览（受 Basic Auth 保护）
+    # 4. 常规 Autoindex 目录浏览
     location / {
+        # 门禁第一道关卡：必须是 (内网访问) OR (外网持有手机用户证书)
+        if ($access_allowed = 0) {
+            return 403 "Forbidden: Access only from LAN or with trusted Client Certificate";
+        }
+
+        # 门禁第二道关卡：Basic Auth 密码保护
         auth_basic  "who are you";
         auth_basic_user_file  /opt/passwd;
 

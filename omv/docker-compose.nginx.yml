@@ -17,5 +17,8 @@ services:
       - "traefik.http.routers.nginx.rule=Host(`${FILES_HOST:-files.${DOMAIN}}`)"
       - "traefik.http.routers.nginx.entrypoints=websecure"
       - "traefik.http.routers.nginx.tls=true"
-      - "traefik.http.routers.nginx.middlewares=lan-only@file"
+      # 开启 mTLS 可选验证（有证书核验证书，无证书放行给后端做 OR 判定）
+      - "traefik.http.routers.nginx.tls.options=client-optional@file"
+      # 透传客户端证书信息中间件
+      - "traefik.http.routers.nginx.middlewares=pass-client-cert@file"
       - "traefik.http.services.nginx.loadbalancer.server.port=80"

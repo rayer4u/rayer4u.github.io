@@ -1,43 +1,53 @@
-<!-- Autoindex 外部播放器与服务端安全签名拉流组件 -->
+<!-- Autoindex 4小时安全免密直链复制组件 -->
 <style>
   .play-btn-group {
     display: inline-block;
-    margin-left: 12px;
+    margin-left: 10px;
     font-size: 11px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     vertical-align: middle;
   }
-  .play-btn {
+  .play-btn-copy {
     display: inline-block;
-    margin-right: 4px;
-    padding: 2px 7px;
+    padding: 2px 8px;
     border-radius: 3px;
-    text-decoration: none;
+    background-color: #2980b9;
     color: #ffffff !important;
     line-height: 1.4;
     cursor: pointer;
     border: none;
     font-size: 11px;
     font-weight: 500;
-    transition: opacity 0.15s ease, transform 0.05s ease;
+    text-decoration: none;
+    transition: background-color 0.2s ease, opacity 0.15s ease, transform 0.05s ease;
   }
-  .play-btn:hover { opacity: 0.85; }
-  .play-btn:active { transform: scale(0.96); }
-  .play-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-  .btn-mx  { background-color: #27ae60; }
-  .btn-vlc { background-color: #d35400; }
-  .btn-pot { background-color: #e67e22; }
-  .btn-copy { background-color: #2980b9; }
+  .play-btn-copy:hover {
+    background-color: #3498db;
+    opacity: 0.9;
+  }
+  .play-btn-copy:active {
+    transform: scale(0.96);
+  }
+  .play-btn-copy[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .play-btn-copy.copied {
+    background-color: #27ae60;
+  }
 </style>
 
 <script>
 (function() {
     var videoExts = /\.(mp4|mkv|webm|avi|mov|ts|flv|m4v|iso|rmvb|wmv)$/i;
+    var signCache = {};
 
-    // 前端无任何密钥：通过受 Basic Auth 保护的服务端 NJS 接口获取 4 小时有效免密直链
     function fetchSecureUrl(targetHref) {
         var u = new URL(targetHref, window.location.href);
         var uri = u.pathname;
+        if (signCache[uri]) {
+            return Promise.resolve(signCache[uri]);
+        }
         return fetch("/api/sign?uri=" + encodeURIComponent(uri), {
             credentials: "include"
         }).then(function(res) {
@@ -46,47 +56,36 @@
             }
             return res.json();
         }).then(function(data) {
-            return new URL(data.url, window.location.origin).href;
+            var fullUrl = new URL(data.url, window.location.origin).href;
+            signCache[uri] = fullUrl;
+            return fullUrl;
         });
     }
 
-    function withLoading(btn, action) {
-        var originText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = "⏳...";
-        action().catch(function(err) {
-            alert("生成免密拉流地址失败: " + err.message);
-        }).finally(function() {
-            btn.disabled = false;
-            btn.textContent = originText;
+    function copyToClipboard(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject) {
+            try {
+                var textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.top = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                var successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    resolve();
+                } else {
+                    reject(new Error("execCommand failed"));
+                }
+            } catch (err) {
+                reject(err);
+            }
         });
-    }
-
-    // 核心唤起：精准直起 MX Player (com.mxtech.videoplayer.ad) 并彻底封死跳转商店逻辑
-    function launchMxPlayer(safeUrl) {
-        // 关键1: 对 URL 参数内的 & 和特殊字符进行严谨编码，避免破坏 Android Intent 语法
-        var rawUrl = safeUrl;
-
-        // 关键2: MX Player 官方指定的完整组件全称 (解决未导出 Activity 无法模糊匹配问题)
-        var pkg = "com.mxtech.videoplayer.ad";
-        var component = pkg + "/com.mxtech.videoplayer.ad.ActivityScreen";
-
-        // 关键3: 声明 BROWSABLE + DEFAULT 分类 (满足 Chrome 严格安全策略)
-        // 关键4: 注入 S.browser_fallback_url 封死跳转商店，失败时保留在当前页并弹窗复制
-        var fallbackUrl = window.location.href;
-
-        var intentUrl = "intent:" + rawUrl + "#Intent;" +
-            "action=android.intent.action.VIEW;" +
-            "category=android.intent.category.DEFAULT;" +
-            "category=android.intent.category.BROWSABLE;" +
-            "type=video/*;" +
-            "package=" + pkg + ";" +
-            "component=" + component + ";" +
-            "S.browser_fallback_url=" + encodeURIComponent(fallbackUrl) + ";" +
-            "end";
-
-        // 触发调用
-        window.location.href = intentUrl;
     }
 
     function init() {
@@ -100,70 +99,38 @@
             var group = document.createElement("span");
             group.className = "play-btn-group";
 
-            // 1. Android MX Player (精准直起 com.mxtech.videoplayer.ad，封死应用商店)
-            var mxBtn = document.createElement("button");
-            mxBtn.className = "play-btn btn-mx";
-            mxBtn.textContent = "MX Player";
-            mxBtn.title = "直接唤起手机已装的 MX Player 播放 (绝不弹商店)";
-            mxBtn.onclick = function(e) {
-                e.preventDefault();
-                withLoading(mxBtn, function() {
-                    return fetchSecureUrl(href).then(function(safeUrl) {
-                        launchMxPlayer(safeUrl);
-                    });
-                });
-            };
-
-            // 2. VLC 唤起 (PC / Linux 注册后 / Android VLC)
-            var vlcBtn = document.createElement("button");
-            vlcBtn.className = "play-btn btn-vlc";
-            vlcBtn.textContent = "VLC";
-            vlcBtn.title = "唤起本地 VLC 播放器";
-            vlcBtn.onclick = function(e) {
-                e.preventDefault();
-                withLoading(vlcBtn, function() {
-                    return fetchSecureUrl(href).then(function(safeUrl) {
-                        window.location.href = "vlc://" + safeUrl;
-                    });
-                });
-            };
-
-            // 3. PotPlayer (Windows 首选)
-            var potBtn = document.createElement("button");
-            potBtn.className = "play-btn btn-pot";
-            potBtn.textContent = "PotPlayer";
-            potBtn.title = "唤起 Windows 本地 PotPlayer";
-            potBtn.onclick = function(e) {
-                e.preventDefault();
-                withLoading(potBtn, function() {
-                    return fetchSecureUrl(href).then(function(safeUrl) {
-                        window.location.href = "potplayer://" + safeUrl;
-                    });
-                });
-            };
-
-            // 4. 复制 4 小时免密直链 (全平台兜底：可在任意播放器的“网络串流”中粘贴)
             var copyBtn = document.createElement("button");
-            copyBtn.className = "play-btn btn-copy";
-            copyBtn.textContent = "📋 复制";
-            copyBtn.title = "复制 4 小时免密直链，可粘贴至任意播放器";
+            copyBtn.className = "play-btn-copy";
+            copyBtn.textContent = "📋 复制直链";
+            copyBtn.title = "复制 4 小时有效免密拉流直链，可直接在 MX Player 的【网络串流】中粘贴播放";
+
             copyBtn.onclick = function(e) {
                 e.preventDefault();
-                withLoading(copyBtn, function() {
-                    return fetchSecureUrl(href).then(function(safeUrl) {
-                        return navigator.clipboard.writeText(safeUrl).then(function() {
-                            copyBtn.textContent = "✔ 已复制";
-                            setTimeout(function() { copyBtn.textContent = "📋 复制"; }, 2000);
-                        }).catch(function() {
-                            prompt("请手动复制 4 小时免密播放地址：", safeUrl);
-                        });
+                var originText = copyBtn.textContent;
+                copyBtn.disabled = true;
+                copyBtn.textContent = "⏳...";
+
+                fetchSecureUrl(href).then(function(safeUrl) {
+                    return copyToClipboard(safeUrl).then(function() {
+                        copyBtn.classList.add("copied");
+                        copyBtn.textContent = "✔ 已复制(4h)";
+                        setTimeout(function() {
+                            copyBtn.classList.remove("copied");
+                            copyBtn.textContent = originText;
+                            copyBtn.disabled = false;
+                        }, 2000);
+                    }).catch(function() {
+                        copyBtn.disabled = false;
+                        copyBtn.textContent = originText;
+                        prompt("请手动复制 4 小时免密播放直链：", safeUrl);
                     });
+                }).catch(function(err) {
+                    copyBtn.disabled = false;
+                    copyBtn.textContent = originText;
+                    alert("生成免密拉流地址失败: " + err.message);
                 });
             };
 
-            group.appendChild(mxBtn);
-            group.appendChild(vlcBtn);
-            group.appendChild(potBtn);
             group.appendChild(copyBtn);
             a.parentNode.insertBefore(group, a.nextSibling);
         });

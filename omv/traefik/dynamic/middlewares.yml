@@ -63,3 +63,12 @@ http:
         burst: 50
         period: 1s
 
+    # 将客户端 mTLS 证书信息提取并透传给后端 Nginx（用于后端校验证书合法性）
+    pass-client-cert:
+      passTLSClientCert:
+        info:
+          notAfter: true
+          subject:
+            commonName: true
+
+
